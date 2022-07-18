@@ -1,42 +1,46 @@
-import { declareIndexPlugin, ReactRNPlugin, WidgetLocation } from '@remnote/plugin-sdk';
+import { declareIndexPlugin, AppEvents, ReactRNPlugin, WidgetLocation } from '@remnote/plugin-sdk';
 import '../style.css';
 import '../App.css';
+import {remIdKey} from '../lib/constants';
+
+let timer: number;
+let openWidgetInfo: { floatingWidgetId: string; remId: string } | undefined;
 
 async function onActivate(plugin: ReactRNPlugin) {
-  // Register settings
-  await plugin.settings.registerStringSetting({
-    id: 'name',
-    title: 'What is your Name?',
-    defaultValue: 'Bob',
+  await plugin.app.registerWidget('hover_editor', WidgetLocation.FloatingWidget, {
+    dimensions: { height: 'auto', width: '500px' },
   });
 
-  await plugin.settings.registerBooleanSetting({
-    id: 'pizza',
-    title: 'Do you like pizza?',
-    defaultValue: true,
+  plugin.event.addListener(AppEvents.MouseOverLink, undefined, (args) => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const rem = await plugin.rem.findOne(args.remId);
+      if (rem) {
+        await plugin.storage.setSession(remIdKey, args.remId);
+        const isOpen =
+          openWidgetInfo?.floatingWidgetId &&
+          (await plugin.window.isFloatingWidgetOpen(
+            openWidgetInfo?.floatingWidgetId
+          ));
+        if (isOpen || !timer) {
+          return;
+        }
+        const floatingWidgetId = await plugin.window.openFloatingWidget(
+          "hover_editor",
+          {
+            left: args.clientX,
+            top: args.clientY + 20,
+          }
+        );
+        openWidgetInfo = { floatingWidgetId, remId: args.remId };
+      }
+    }, 500);
   });
 
-  await plugin.settings.registerNumberSetting({
-    id: 'favorite-number',
-    title: 'What is your favorite number?',
-    defaultValue: 42,
-  });
-
-  // A command that inserts text into the editor if focused.
-  await plugin.app.registerCommand({
-    id: 'editor-command',
-    name: 'Editor Command',
-    action: async () => {
-      plugin.editor.insertPlainText('Hello World!');
-    },
-  });
-
-  // Show a toast notification to the user.
-  await plugin.app.toast("I'm a toast!");
-
-  // Register a sidebar widget.
-  await plugin.app.registerWidget('sample_widget', WidgetLocation.RightSidebar, {
-    dimensions: { height: 'auto', width: '100%' },
+  plugin.event.addListener(AppEvents.MouseOutLink, undefined, async () => {
+    if (timer) {
+      clearTimeout(timer);
+    }
   });
 }
 
