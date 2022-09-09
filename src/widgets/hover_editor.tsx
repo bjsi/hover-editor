@@ -1,15 +1,10 @@
-import { usePlugin, renderWidget, useRunAsync, RemHierarchyEditorTree, LoadingSpinner } from '@remnote/plugin-sdk';
+import { usePlugin, renderWidget, useRunAsync, RemHierarchyEditorTree, LoadingSpinner, WidgetLocation } from '@remnote/plugin-sdk';
 import { remIdKey } from '../lib/constants';
 
 export const HoverEditor = () => {
   const plugin = usePlugin()
   const remId = useRunAsync(async () => {
-    return await plugin.storage.getSession(remIdKey);
-  }, [])
-
-  const fId = useRunAsync(async () => {
-    const ctx = await plugin.widget.getWidgetContext();
-    return ctx?.floatingWidgetId;
+    return await plugin.storage.getSession<string>(remIdKey);
   }, [])
 
   return (
